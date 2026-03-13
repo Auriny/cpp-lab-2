@@ -1,6 +1,9 @@
-#include "Station.h"
+#include "station.h"
 #include <iostream>
 #include <algorithm>
+
+#include "module.h"
+#include "robot.h"
 
 Station::Station()
         : energy(500),

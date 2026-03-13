@@ -1,4 +1,5 @@
-#include "Module.h"
+
+#include "module.h"
 
 Module::Module(ModuleType t): type(t), level(1), active(true)
 {
