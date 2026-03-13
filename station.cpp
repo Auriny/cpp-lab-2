@@ -25,13 +25,10 @@ void Station::Init() {
 int Station::CalculateSignalChance() {
     int totalPower = 0;
 
-    for (const auto& m : modules)
-        totalPower += m.GetEnergyOutput();
+    for (const auto& m : modules) totalPower += m.GetEnergyOutput();
+    for (const auto& r : robots) if (r.IsAlive()) totalPower += 10;
 
-    for (const auto& r : robots)
-        if (r.IsAlive()) totalPower += 10;
-
-    totalPower += energy / 20;
+//    totalPower += energy / 20;
 
     int aliveRobots = 0;
     for (const auto& r : robots)
@@ -159,7 +156,7 @@ void Station::CorporationTax() {
 }
 
 void Station::ProcessDay() {
-    std::cout << "\n===== СТАНЦИЯ: " << name << " =====";
+    std::cout << "\n===== СТАНЦИЯ: " << name << " =====\n";
     std::cout << "\n=== ДЕНЬ " << day << " ===\n";
 
     ProductionPhase();
@@ -186,22 +183,17 @@ void Station::PrintStatus() {
 }
 
 bool Station::IsGameOver() {
-    if (robots.empty())
-        return true;
-
-    if (energy <= 0 && bits <= 0)
-        return true;
+    if (robots.empty()) return true;
+    if (energy <= 0 && bits <= 0) return true;
 
     return false;
 }
-
-#include <limits>
 
 void Station::StartGame() {
     std::cout << "Введите название станции:\n";
     getline(std::cin, name);
 
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+//    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     Init();
 

@@ -41,7 +41,6 @@ Resources Robot::ProduceResources() const {
     } else return {int(3 * multiplier), int(10 * multiplier)};
 }
 
-// чем старше робот тем быстрее он сломается :3
 void Robot::Age() {
     static std::default_random_engine rng(std::random_device{}());
 
