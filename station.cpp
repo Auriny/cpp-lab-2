@@ -132,7 +132,7 @@ void Station::RemoveDead() {
     robots.erase(remove_if(
                     robots.begin(),
                     robots.end(),
-                    [](const Robot& r){
+                    [](const auto& r){
                         return !r.IsAlive();
                     }),
                  robots.end());
