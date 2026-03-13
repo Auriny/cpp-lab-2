@@ -1,11 +1,14 @@
-// #include <windows.h>
-
 #include "station.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 int main() {
-    // SetConsoleOutputCP(CP_UTF8);
-    // SetConsoleCP(CP_UTF8);
-//    std::setlocale(LC_ALL, ".UTF8");
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
 
     Station station;
     station.StartGame();

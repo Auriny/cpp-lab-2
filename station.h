@@ -3,9 +3,8 @@
 #include <string>
 #include <random>
 
-
-class Module;
-class Robot;
+#include "Robot.h"
+#include "Module.h"
 
 class Station {
 private:
