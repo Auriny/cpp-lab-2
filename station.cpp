@@ -129,14 +129,13 @@ void Station::AgingPhase() {
 }
 
 void Station::RemoveDead() {
-    robots.erase(
-            remove_if(
+    robots.erase(remove_if(
                     robots.begin(),
                     robots.end(),
                     [](const Robot& r){
                         return !r.IsAlive();
                     }),
-            robots.end());
+                 robots.end());
 }
 
 void Station::CorporationTax() {
