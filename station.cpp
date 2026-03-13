@@ -158,7 +158,7 @@ void Station::CorporationTax() {
 }
 
 void Station::ProcessDay() {
-    std::cout << "\n===== СТАНЦИЯ: " << name << " =====\n";
+    std::cout << "\n===== СТАНЦИЯ: " << name << " =====";
     std::cout << "\n=== ДЕНЬ " << day << " ===\n";
 
     ProductionPhase();
