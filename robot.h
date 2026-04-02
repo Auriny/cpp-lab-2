@@ -1,44 +1,33 @@
 #pragma once
 #include <string>
 
-enum class RobotType {
-    INTEGRATOR,
-    KEEPER
-};
-
 struct Resources {
     int energy;
     int data;
 };
 
 class Robot {
-private:
+protected:
     std::string name;
-    RobotType type;
-
-    int chassisIntegrity;
-    int firmwareIntegrity;
-
-    bool alive;
-    int ageDays;
+    int chassisIntegrity = 100;
+    int firmwareIntegrity = 100;
+    bool alive = true;
+    int ageDays = 0;
 
 public:
-    Robot(std::string n, RobotType t);
+    Robot(std::string n) : name(n) {}
 
-    bool IsAlive() const;
-    RobotType GetType() const;
-    std::string GetName() const;
+    virtual Resources ProduceResources() const = 0;
+    virtual int GetSlotsUsed() const = 0;
 
-    int GetSlotsUsed() const;
+    virtual void Age();
+    virtual void PrintStatus() const = 0;
 
-    Resources ProduceResources() const;
-
-    void Age();
+    bool IsAlive() const { return alive; }
 
     void DamageChassis(int dmg);
-
     void RepairChassis(int amount);
     void RepairFirmware(int amount);
 
-    void PrintStatus() const;
+    virtual ~Robot() = default;
 };

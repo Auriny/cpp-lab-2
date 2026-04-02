@@ -1,30 +1,16 @@
 #pragma once
-#include <string>
-
-enum class ModuleType {
-    ARCHIVE,
-    CONTROL_CENTER,
-    HABITATION,
-    GENERATOR
-};
 
 class Module {
-private:
-    ModuleType type;
-    int level;
-    bool active;
-
 public:
-    Module(ModuleType t);
+    virtual int GetEnergyOutput() const = 0;
+    virtual int GetEnergyInput() const = 0;
+    virtual int GetDataOutput() const = 0;
+    virtual int GetHabitationSlots() const = 0;
 
-    bool IsActive() const;
-    void Toggle();
+    virtual void Upgrade() = 0;
 
-    ModuleType GetType() const;
+    virtual bool IsActive() const = 0;
+    virtual void Toggle() = 0;
 
-    int GetEnergyOutput() const;
-    int GetEnergyInput() const;
-    int GetDataOutput() const;
-
-    int GetHabitationSlots() const;
+    virtual ~Module() = default;
 };

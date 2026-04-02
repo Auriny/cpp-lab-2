@@ -3,15 +3,15 @@
 #include <string>
 #include <random>
 
-#include "Robot.h"
-#include "Module.h"
+#include "robot.h"
+#include "module.h"
 
 class Station {
 private:
     std::string name;
 
-    std::vector<Robot> robots;
-    std::vector<Module> modules;
+    std::vector<Robot*> robots;
+    std::vector<Module*> modules;
 
     int energy;
     int maxEnergy;
@@ -53,4 +53,6 @@ public:
     bool IsGameOver();
 
     void StartGame();
+
+    ~Station();
 };
