@@ -4,6 +4,13 @@
 
 #include "module.h"
 #include "robot.h"
+#include "local_computer.h"
+#include "keeper.h"
+#include "integrator.h"
+#include "generator_module.h"
+#include "habitation_module.h"
+#include "control_center_module.h"
+#include "archive_module.h"
 
 Station::Station()
         : energy(500),
@@ -13,29 +20,39 @@ Station::Station()
 {
 }
 
-void Station::Init() {
-    modules.emplace_back(ModuleType::ARCHIVE);
-    modules.emplace_back(ModuleType::CONTROL_CENTER);
-    modules.emplace_back(ModuleType::HABITATION);
-    modules.emplace_back(ModuleType::GENERATOR);
+Station::~Station() {
+    for (auto r : robots) delete r;
+    for (auto m : modules) delete m;
+}
 
-    robots.emplace_back("A-001", RobotType::INTEGRATOR);
-    robots.emplace_back("A-002", RobotType::INTEGRATOR);
-    robots.emplace_back("Омч", RobotType::KEEPER);
-    robots.emplace_back("Чмо", RobotType::KEEPER);
+void Station::Init() {
+    modules.push_back(new ArchiveModule());
+    modules.push_back(new ControlCenterModule());
+    modules.push_back(new HabitationModule());
+    modules.push_back(new GeneratorModule());
+
+    robots.push_back(new Integrator("A-001"));
+    robots.push_back(new Integrator("A-002"));
+    robots.push_back(new Keeper("Чмо"));
+    robots.push_back(new LocalComputer("LC-01"));
 }
 
 int Station::CalculateSignalChance() {
     int totalPower = 0;
 
-    for (const auto& m : modules) totalPower += m.GetEnergyOutput();
-    for (const auto& r : robots) if (r.IsAlive()) totalPower += 10;
+    for (const auto* m : modules) totalPower += m->GetEnergyOutput();
+//    for (const auto& r : robots) if (r->IsAlive()) totalPower += 10;
 
 //    totalPower += energy / 20;
 
     int aliveRobots = 0;
-    for (const auto& r : robots)
-        if (r.IsAlive())aliveRobots++;
+    for (const auto* r : robots) {
+        if (!r->IsAlive()) continue;
+        aliveRobots++;
+
+        if (dynamic_cast<const LocalComputer*>(r) == nullptr)
+            totalPower += 10;
+    }
 
     int interference = aliveRobots * 10;
 
@@ -49,22 +66,21 @@ int Station::CalculateSignalChance() {
 
 int Station::CalculateHabitation() {
     int slots = 0;
-    for (const auto& m : modules) slots += m.GetHabitationSlots();
+    for (const auto& m : modules) slots += m->GetHabitationSlots();
 
     return slots;
 }
 
 void Station::ProductionPhase() {
-    for (const auto& m : modules) {
-        energy += m.GetEnergyOutput();
-        bits += m.GetDataOutput();
+    for (auto* m : modules) {
+        energy += m->GetEnergyOutput();
+        bits += m->GetDataOutput();
     }
 
-    for (auto& r : robots) {
-        if (!r.IsAlive()) continue;
+    for (auto* r : robots) {
+        if (!r->IsAlive()) continue;
 
-        auto res = r.ProduceResources();
-
+        auto res = r->ProduceResources();
         energy += res.energy;
         bits += res.data;
     }
@@ -76,17 +92,17 @@ void Station::HousingCheck() {
     int capacity = CalculateHabitation();
     int used = 0;
 
-    for (const auto& r : robots) if (r.IsAlive())used += r.GetSlotsUsed();
+    for (const auto* r : robots) if (r->IsAlive()) used += r->GetSlotsUsed();
 
     if (used > capacity) {
         int overflow = used - capacity;
 
         std::cout << "Переполнение жилого отсека! Роботы получают урон.\n";
 
-        for (auto& r : robots) {
-            if (!r.IsAlive()) continue;
-            r.DamageChassis(10 * 5);
-            overflow -= r.GetSlotsUsed();
+        for (auto* r : robots) {
+            if (!r->IsAlive()) continue;
+            r->DamageChassis(10* 5);
+            overflow -= r->GetSlotsUsed();
             if (overflow <= 0) break;
         }
     }
@@ -108,36 +124,40 @@ void Station::SignalAttempt() {
 }
 
 void Station::ModuleConsumption() {
-    for (const auto& m : modules) energy -= m.GetEnergyInput();
+    for (const auto& m : modules) energy -= m->GetEnergyInput();
 }
 
 void Station::RepairPhase() {
     for (auto& r : robots) {
-        if (!r.IsAlive())continue;
+        if (!r->IsAlive())continue;
 
         if (energy >= 5) {
-            r.RepairChassis(2);
+            r->RepairChassis(2);
             energy -= 5;
         }
 
         if (bits >= 5) {
-            r.RepairFirmware(1);
+            r->RepairFirmware(1);
             bits -= 5;
         }
     }
 }
 
 void Station::AgingPhase() {
-    for (auto& r : robots) r.Age();
+    for (auto& r : robots) r->Age();
 }
 
 void Station::RemoveDead() {
     robots.erase(remove_if(
-                    robots.begin(),
-                    robots.end(),
-                    [](const auto& r){
-                        return !r.IsAlive();
-                    }),
+                         robots.begin(),
+                         robots.end(),
+                         [](Robot* r) {
+                             if (!r->IsAlive()) {
+                                 delete r;
+                                 return true;
+                             }
+                             return false;
+                         }),
                  robots.end());
 }
 
@@ -180,8 +200,19 @@ void Station::PrintStatus() {
     std::cout << "Шанс сигнала: " << CalculateSignalChance() << "%\n";
 
     std::cout << "\nРоботы:\n";
+    for (auto* r : robots) r->PrintStatus();
 
-    for (auto& r : robots) r.PrintStatus();
+    std::cout << "\nМодули:\n";
+    for (int i = 0; i < modules.size(); i++) {
+        std::cout << i+1 << ": ";
+
+        if (dynamic_cast<GeneratorModule*>(modules[i])) std::cout << "Генератор";
+        else if (dynamic_cast<ArchiveModule*>(modules[i])) std::cout << "Архив";
+        else if (dynamic_cast<HabitationModule*>(modules[i])) std::cout << "Жилой";
+        else if (dynamic_cast<ControlCenterModule*>(modules[i])) std::cout << "Центр";
+
+        std::cout << "\n";
+    }
 }
 
 bool Station::IsGameOver() {
@@ -200,12 +231,57 @@ void Station::StartGame() {
     Init();
 
     while (!IsGameOver()) {
-        ProcessDay();
+        std::cout << "\n===== РЕСУРСЫ =====\n";
+        std::cout << "Энергия: " << energy << "/" << maxEnergy << "\n";
+        std::cout << "Биты: " << bits << "\n";
 
-        std::cout << "\nНажмите ENTER чтобы перейти к следующему дню...";
+        std::cout << "\n1 - следующий день\n";
+        std::cout << "2 - построить генератор (100 энергии)\n";
+        std::cout << "3 - улучшить модуль (50 бит)\n";
 
-        std::string tmp;
-        std::getline(std::cin, tmp);
+        int choice;
+        std::cin >> choice;
+        std::cin.ignore();
+
+        switch (choice) {
+            default:
+                ProcessDay();
+                break;
+            case 2:
+                if (energy >= 100) {
+                    modules.push_back(new GeneratorModule());
+                    energy -= 100;
+                    std::cout << "Генератор построен!\n";
+                } else std::cout << "Недостаточно энергии\n";
+                break;
+            case 3:
+                if (modules.empty()) {
+                    std::cout << "Нет модулей для улучшения\n";
+                    continue;
+                }
+
+                std::cout << "Выбери модуль:\n";
+
+                for (int i = 0; i < modules.size(); i++) {
+                    std::cout << i << " - модуль\n";
+                }
+
+                int index;
+                std::cin >> index;
+                std::cin.ignore();
+
+                if (index >= 0 && index < modules.size()) {
+                    if (bits >= 50) {
+                        modules[index]->Upgrade();
+                        bits -= 50;
+                        std::cout << "Модуль улучшен\n";
+                    } else {
+                        std::cout << "Недостаточно бит\n";
+                    }
+                }
+                break;
+        }
+
     }
-    std::cout << "\nСтанция больше не функционирует.\n";
+    std::cout << "\nСтанция умерла\n";
 }
