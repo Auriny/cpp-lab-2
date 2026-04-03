@@ -37,7 +37,7 @@ void Station::Init() {
     robots.push_back(new LocalComputer("LC-01"));
 }
 
-int Station::CalculateSignalChance() {
+int Station::CalculateSignalChance() const {
     int totalPower = 0;
 
     for (const auto* m : modules) totalPower += m->GetEnergyOutput();
@@ -61,10 +61,10 @@ int Station::CalculateSignalChance() {
     if (chance < 5) chance = 5;
     if (chance > 90) chance = 90;
 
-    return (int)chance;
+    return static_cast<int>(chance);
 }
 
-int Station::CalculateHabitation() {
+int Station::CalculateHabitation() const {
     int slots = 0;
     for (const auto& m : modules) slots += m->GetHabitationSlots();
 
@@ -88,7 +88,7 @@ void Station::ProductionPhase() {
     if (energy > maxEnergy) energy = maxEnergy;
 }
 
-void Station::HousingCheck() {
+void Station::HousingCheck() const {
     int capacity = CalculateHabitation();
     int used = 0;
 
@@ -143,27 +143,25 @@ void Station::RepairPhase() {
     }
 }
 
-void Station::AgingPhase() {
+void Station::AgingPhase() const {
     for (auto& r : robots) r->Age();
 }
 
 void Station::RemoveDead() {
-    robots.erase(remove_if(
-                         robots.begin(),
-                         robots.end(),
-                         [](Robot* r) {
-                             if (!r->IsAlive()) {
-                                 delete r;
-                                 return true;
-                             }
-                             return false;
-                         }),
+    robots.erase(std::ranges::remove_if(robots,
+                                        [](const Robot* r) {
+                                            if (!r->IsAlive()) {
+                                                delete r;
+                                                return true;
+                                            }
+                                            return false;
+                                        }).begin(),
                  robots.end());
 }
 
 void Station::CorporationTax() {
     if (day % 5 != 0)return;
-    std::cout << "Орбитальная корпорация взимает налог.\n";
+    std::cout << "Орбитальная корпорация взимает налог!!!\n";
 
     if (energy > 0) {
         int tax = energy * 0.10;
@@ -194,7 +192,7 @@ void Station::ProcessDay() {
     day++;
 }
 
-void Station::PrintStatus() {
+void Station::PrintStatus() const {
     std::cout << "Энергия: " << energy << "/" << maxEnergy << std::endl;
     std::cout << "Данные: " << bits << std::endl;
     std::cout << "Шанс сигнала: " << CalculateSignalChance() << "%\n";
@@ -220,7 +218,7 @@ void Station::PrintStatus() {
     }
 }
 
-bool Station::IsGameOver() {
+bool Station::IsGameOver() const {
     if (robots.empty()) return true;
     if (energy <= 0 && bits <= 0) return true;
 
@@ -274,7 +272,7 @@ void Station::StartGame() {
                 std::cout << "Выбери модуль:\n";
 
                 for (int i = 0; i < modules.size(); i++) {
-                    std::cout << i << " - модуль\n";
+                    std::cout << i << " - модуль\n"; //todo реализовать имена в модули
                 }
 
                 int index;
@@ -286,9 +284,7 @@ void Station::StartGame() {
                         modules[index]->Upgrade();
                         bits -= 50;
                         std::cout << "Модуль улучшен\n";
-                    } else {
-                        std::cout << "Недостаточно бит\n";
-                    }
+                    } else std::cout << "Недостаточно бит\n";
                 }
             }
             break;

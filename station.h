@@ -7,7 +7,6 @@
 #include "module.h"
 
 class Station {
-private:
     std::string name;
 
     std::vector<Robot*> robots;
@@ -26,13 +25,13 @@ public:
 
     void Init();
 
-    int CalculateSignalChance();
+    int CalculateSignalChance() const;
 
-    int CalculateHabitation();
+    int CalculateHabitation() const;
 
     void ProductionPhase();
 
-    void HousingCheck();
+    void HousingCheck() const;
 
     void SignalAttempt();
 
@@ -40,7 +39,7 @@ public:
 
     void RepairPhase();
 
-    void AgingPhase();
+    void AgingPhase() const;
 
     void RemoveDead();
 
@@ -48,9 +47,9 @@ public:
 
     void ProcessDay();
 
-    void PrintStatus();
+    void PrintStatus() const;
 
-    bool IsGameOver();
+    bool IsGameOver() const;
 
     void StartGame();
 

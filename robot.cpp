@@ -7,8 +7,8 @@ void Robot::Age() {
 
     int wearBonus = ageDays / 20;
 
-    std::uniform_int_distribution<int> chassisWear(1 + wearBonus, 4 + wearBonus);
-    std::uniform_int_distribution<int> firmwareWear(1, 2 + wearBonus);
+    std::uniform_int_distribution chassisWear(1 + wearBonus, 4 + wearBonus);
+    std::uniform_int_distribution firmwareWear(1, 2 + wearBonus);
 
     ageDays++;
 

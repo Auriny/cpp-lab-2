@@ -18,7 +18,7 @@ protected:
     int ageDays = 0;
 
 public:
-    Robot(std::string n) : name(n) {}
+    Robot(const std::string &n) : name(n) {}
 
     Robot& operator--() {
         Age();
