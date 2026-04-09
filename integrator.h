@@ -7,6 +7,17 @@ class Integrator : public Robot {
 public:
     Integrator(std::string n) : Robot(n) {}
 
+    std::string GetType() const override { return "ИНТЕГРАТОР"; }
+
+    Robot* CloneWithStats(int ch, int fw, std::string n) const override {
+        Integrator* r = new Integrator(n);
+        r->RepairChassis(100);
+        r->RepairFirmware(100);
+        r->DamageChassis(100 - ch);
+        r->RepairFirmware(fw - 100);
+        return r;
+    }
+
     Resources ProduceResources() const override {
         double mult = ageDays > 10 ? 1.5 : 1.0;
         return {int(10 * mult), int(3 * mult)};
@@ -18,10 +29,5 @@ public:
 };
 
 void Integrator::PrintStatus() const {
-    std::cout << name << " | ИНТЕГРАТОР | "
-              << "Шасси:" << chassisIntegrity
-              << " Прошивка:" << firmwareIntegrity;
-
-    if (!alive) std::cout << " МЁРТВ";
-    std::cout << std::endl;
+    std::cout << *this << std::endl;
 }

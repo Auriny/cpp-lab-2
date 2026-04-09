@@ -15,6 +15,13 @@ public:
         return active ? 5 * level : 0;
     }
 
+    Module* Clone() const override {
+        return new ArchiveModule(*this);
+    }
+
+    std::string GetType() const override { return "Архив"; }
+    int GetLevel() const override { return level; }
+
     int GetHabitationSlots() const override { return 0; }
 
     void Upgrade() override { level++; }

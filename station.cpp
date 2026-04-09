@@ -206,10 +206,15 @@ void Station::PrintStatus() {
     for (int i = 0; i < modules.size(); i++) {
         std::cout << i+1 << ": ";
 
-        if (dynamic_cast<GeneratorModule*>(modules[i])) std::cout << "Генератор";
-        else if (dynamic_cast<ArchiveModule*>(modules[i])) std::cout << "Архив";
-        else if (dynamic_cast<HabitationModule*>(modules[i])) std::cout << "Жилой";
-        else if (dynamic_cast<ControlCenterModule*>(modules[i])) std::cout << "Центр";
+        std::cout << "\nМодули:\n";
+        for (int i = 0; i < modules.size(); i++) {
+            std::cout << i + 1 << ": " << *modules[i] << "\n";
+        }
+
+//        if (dynamic_cast<GeneratorModule*>(modules[i])) std::cout << "Генератор";
+//        else if (dynamic_cast<ArchiveModule*>(modules[i])) std::cout << "Архив";
+//        else if (dynamic_cast<HabitationModule*>(modules[i])) std::cout << "Жилой";
+//        else if (dynamic_cast<ControlCenterModule*>(modules[i])) std::cout << "Центр";
 
         std::cout << "\n";
     }
@@ -238,23 +243,29 @@ void Station::StartGame() {
         std::cout << "\n1 - следующий день\n";
         std::cout << "2 - построить генератор (100 энергии)\n";
         std::cout << "3 - улучшить модуль (50 бит)\n";
+        std::cout << "4 - синтез роботов\n";
+        std::cout << "5 - объединить модули\n";
 
         int choice;
         std::cin >> choice;
         std::cin.ignore();
 
         switch (choice) {
-            default:
+            default: {
                 ProcessDay();
-                break;
-            case 2:
+            }
+            break;
+
+            case 2: {
                 if (energy >= 100) {
                     modules.push_back(new GeneratorModule());
                     energy -= 100;
                     std::cout << "Генератор построен!\n";
                 } else std::cout << "Недостаточно энергии\n";
-                break;
-            case 3:
+            }
+            break;
+
+            case 3: {
                 if (modules.empty()) {
                     std::cout << "Нет модулей для улучшения\n";
                     continue;
@@ -279,7 +290,52 @@ void Station::StartGame() {
                         std::cout << "Недостаточно бит\n";
                     }
                 }
-                break;
+            }
+            break;
+
+            case 4: {
+                if (robots.size() < 2) {
+                    std::cout << "Недостаточно роботов\n";
+                    break;
+                }
+
+                int a, b;
+                std::cout << "Выбери двух роботов:\n";
+                std::cin >> a >> b;
+
+                Robot* child = *robots[a] + *robots[b];
+
+                if (!child) {
+                    std::cout << "Синтез невозможен\n";
+                } else {
+                    robots.push_back(child);
+                    std::cout << "Создан новый робот:\n" << *child << "\n";
+                }
+            }
+            break;
+
+            case 5: {
+                int a, b; //todo
+                std::cin >> a >> b;
+
+                Module* result = *modules[a] + *modules[b];
+
+                if (!result) {
+                    std::cout << "Нельзя объединить\n";
+                    break;
+                }
+
+                delete modules[a];
+                delete modules[b];
+
+                modules.erase(modules.begin() + std::max(a,b));
+                modules.erase(modules.begin() + std::min(a,b));
+
+                modules.push_back(result);
+
+                std::cout << "Модули объединены\n";
+            }
+            break;
         }
 
     }
