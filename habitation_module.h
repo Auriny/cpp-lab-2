@@ -14,6 +14,13 @@ public:
         return active ? 10 : 0;
     }
 
+    Module* Clone() const override {
+        return new HabitationModule(*this);
+    }
+
+    std::string GetType() const override { return "Жилой модуль"; }
+    int GetLevel() const override { return level; }
+
     int GetDataOutput() const override { return 0; }
 
     int GetHabitationSlots() const override {
