@@ -43,7 +43,7 @@ public:
         if (ageDays < 5 || other.ageDays < 5) return nullptr;
 
         static std::default_random_engine rng(std::random_device{}());
-        std::uniform_real_distribution<double> mutation(0.8, 1.2);
+        std::uniform_real_distribution mutation(0.8, 1.2);
 
         double factor = mutation(rng);
 
@@ -73,10 +73,10 @@ public:
         return os;
     }
 
-//    friend std::istream& operator>>(std::istream& is, Robot& r) {
-//        is >> r.name;
-//        return is;
-//    }
+    // friend std::istream& operator>>(std::istream& is, Robot& r) {
+        // is >> r.name;
+        // return is;
+    // }
 
     virtual Resources ProduceResources() const = 0;
     virtual int GetSlotsUsed() const = 0;

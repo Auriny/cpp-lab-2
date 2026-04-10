@@ -198,24 +198,10 @@ void Station::PrintStatus() const {
     std::cout << "Шанс сигнала: " << CalculateSignalChance() << "%\n";
 
     std::cout << "\nРоботы:\n";
-    for (auto* r : robots) r->PrintStatus();
+    for (int i = 0; i < robots.size(); i++) std::cout << i + 1 << ": " << *robots[i] << "\n";
 
     std::cout << "\nМодули:\n";
-    for (int i = 0; i < modules.size(); i++) {
-        std::cout << i+1 << ": ";
-
-        std::cout << "\nМодули:\n";
-        for (int i = 0; i < modules.size(); i++) {
-            std::cout << i + 1 << ": " << *modules[i] << "\n";
-        }
-
-//        if (dynamic_cast<GeneratorModule*>(modules[i])) std::cout << "Генератор";
-//        else if (dynamic_cast<ArchiveModule*>(modules[i])) std::cout << "Архив";
-//        else if (dynamic_cast<HabitationModule*>(modules[i])) std::cout << "Жилой";
-//        else if (dynamic_cast<ControlCenterModule*>(modules[i])) std::cout << "Центр";
-
-        std::cout << "\n";
-    }
+    for (int i = 0; i < modules.size(); i++) std::cout << i + 1 << ": " << *modules[i] << "\n";
 }
 
 bool Station::IsGameOver() const {
