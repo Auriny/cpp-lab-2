@@ -1,9 +1,8 @@
 #include "station.h"
+#include "exceptions.h"
 #include <iostream>
 #include <algorithm>
 
-#include "module.h"
-#include "robot.h"
 #include "local_computer.h"
 #include "keeper.h"
 #include "integrator.h"
@@ -12,51 +11,35 @@
 #include "control_center_module.h"
 #include "archive_module.h"
 
-Station::Station()
-        : energy(500),
-          maxEnergy(1000),
-          bits(0),
-          day(1)
-{
-}
-
-Station::~Station() {
-    for (auto r : robots) delete r;
-    for (auto m : modules) delete m;
-}
+Station::Station() : energy(500), maxEnergy(1000), bits(0), day(1) {}
 
 void Station::Init() {
-    modules.push_back(new ArchiveModule());
-    modules.push_back(new ControlCenterModule());
-    modules.push_back(new HabitationModule());
-    modules.push_back(new GeneratorModule());
+    modules.push_back(std::make_shared<ArchiveModule>());
+    modules.push_back(std::make_shared<ControlCenterModule>());
+    modules.push_back(std::make_shared<HabitationModule>());
+    modules.push_back(std::make_shared<GeneratorModule>());
 
-    robots.push_back(new Integrator("A-001"));
-    robots.push_back(new Integrator("A-002"));
-    robots.push_back(new Keeper("Чмо"));
-    robots.push_back(new LocalComputer("LC-01"));
+    robots.push_back(std::make_unique<Integrator>("A-001"));
+    robots.push_back(std::make_unique<Integrator>("A-002"));
+    robots.push_back(std::make_unique<Keeper>("Чмо"));
+    robots.push_back(std::make_unique<LocalComputer>("LC-01"));
 }
 
 int Station::CalculateSignalChance() {
+    if (inStorm || commFailureDaysLeft > 0) return 0;
+
     int totalPower = 0;
-
-    for (const auto* m : modules) totalPower += m->GetEnergyOutput();
-//    for (const auto& r : robots) if (r->IsAlive()) totalPower += 10;
-
-//    totalPower += energy / 20;
+    for (const auto& m : modules) totalPower += m->GetEnergyOutput();
 
     int aliveRobots = 0;
-    for (const auto* r : robots) {
+    for (const auto& r : robots) {
         if (!r->IsAlive()) continue;
         aliveRobots++;
-
-        if (dynamic_cast<const LocalComputer*>(r) == nullptr)
-            totalPower += 10;
+        if (dynamic_cast<LocalComputer*>(r.get()) == nullptr) totalPower += 10;
     }
 
     int interference = aliveRobots * 10;
-
-    double chance = 100* totalPower / (totalPower + interference);
+    double chance = 100 * totalPower / (totalPower + interference);
 
     if (chance < 5) chance = 5;
     if (chance > 90) chance = 90;
@@ -67,41 +50,34 @@ int Station::CalculateSignalChance() {
 int Station::CalculateHabitation() {
     int slots = 0;
     for (const auto& m : modules) slots += m->GetHabitationSlots();
-
     return slots;
 }
 
 void Station::ProductionPhase() {
-    for (auto* m : modules) {
+    for (auto& m : modules) {
         energy += m->GetEnergyOutput();
         bits += m->GetDataOutput();
     }
-
-    for (auto* r : robots) {
+    for (auto& r : robots) {
         if (!r->IsAlive()) continue;
-
         auto res = r->ProduceResources();
         energy += res.energy;
         bits += res.data;
     }
-
     if (energy > maxEnergy) energy = maxEnergy;
 }
 
 void Station::HousingCheck() {
     int capacity = CalculateHabitation();
     int used = 0;
-
-    for (const auto* r : robots) if (r->IsAlive()) used += r->GetSlotsUsed();
+    for (const auto& r : robots) if (r->IsAlive()) used += r->GetSlotsUsed();
 
     if (used > capacity) {
         int overflow = used - capacity;
-
         std::cout << "Переполнение жилого отсека! Роботы получают урон.\n";
-
-        for (auto* r : robots) {
+        for (auto& r : robots) {
             if (!r->IsAlive()) continue;
-            r->DamageChassis(10* 5);
+            r->DamageChassis(10 * 5);
             overflow -= r->GetSlotsUsed();
             if (overflow <= 0) break;
         }
@@ -110,16 +86,12 @@ void Station::HousingCheck() {
 
 void Station::SignalAttempt() {
     int chance = CalculateSignalChance();
+    if (chance <= 0) return;
 
-    std::uniform_int_distribution<int> dist(1,100);
-
-    int roll = dist(rng);
-
-    if (roll <= chance) {
-        int reward = 200;
-        bits += reward;
-
-        std::cout << "Пойман сигнал! Получено " << reward << " бит данных.\n";
+    std::uniform_int_distribution<int> dist(1, 100);
+    if (dist(rng) <= chance) {
+        bits += 200;
+        std::cout << "Пойман сигнал! Получено 200 бит данных.\n";
     }
 }
 
@@ -129,17 +101,9 @@ void Station::ModuleConsumption() {
 
 void Station::RepairPhase() {
     for (auto& r : robots) {
-        if (!r->IsAlive())continue;
-
-        if (energy >= 5) {
-            r->RepairChassis(2);
-            energy -= 5;
-        }
-
-        if (bits >= 5) {
-            r->RepairFirmware(1);
-            bits -= 5;
-        }
+        if (!r->IsAlive()) continue;
+        if (energy >= 5) { r->RepairChassis(2); energy -= 5; }
+        if (bits >= 5) { r->RepairFirmware(1); bits -= 5; }
     }
 }
 
@@ -148,29 +112,20 @@ void Station::AgingPhase() {
 }
 
 void Station::RemoveDead() {
-    robots.erase(remove_if(
-                         robots.begin(),
-                         robots.end(),
-                         [](Robot* r) {
-                             if (!r->IsAlive()) {
-                                 delete r;
-                                 return true;
-                             }
-                             return false;
-                         }),
-                 robots.end());
+    robots.erase(std::remove_if(
+            robots.begin(), robots.end(),
+            [](const std::unique_ptr<Robot>& r) { return !r->IsAlive(); }
+    ), robots.end());
 }
 
 void Station::CorporationTax() {
-    if (day % 5 != 0)return;
+    if (day % 5 != 0) return;
     std::cout << "Орбитальная корпорация взимает налог.\n";
-
     if (energy > 0) {
         int tax = energy * 0.10;
         energy -= tax;
         std::cout << "Списано энергии: " << tax << std::endl;
-    }
-    else {
+    } else {
         int tax = bits * 0.20;
         bits -= tax;
         std::cout << "Списано данных: " << tax << std::endl;
@@ -181,6 +136,16 @@ void Station::ProcessDay() {
     std::cout << "\n===== СТАНЦИЯ: " << name << " =====";
     std::cout << "\n=== ДЕНЬ " << day << " ===\n";
 
+    // Снимаем штрафы модулей
+    for (auto& m : modules) {
+        if (m->GetDisabledTimer() > 0) {
+            m->SetDisabledTimer(m->GetDisabledTimer() - 1);
+            if (m->GetDisabledTimer() == 0) m->SetActive(true);
+        }
+    }
+
+    if (commFailureDaysLeft > 0) commFailureDaysLeft--;
+
     ProductionPhase();
     HousingCheck();
     SignalAttempt();
@@ -189,8 +154,39 @@ void Station::ProcessDay() {
     AgingPhase();
     CorporationTax();
     RemoveDead();
-    PrintStatus();
 
+    // Штормовая механика
+    if (day > 10) {
+        if (stormDaysLeft > 0) {
+            stormDaysLeft--;
+            if (stormDaysLeft == 0) {
+                inStorm = false;
+                std::cout << "\n[Квантовый шторм закончился]\n";
+            }
+        } else if (!inStorm) {
+            std::uniform_int_distribution<int> stormChance(1, 100);
+            if (stormChance(rng) <= 20) {
+                inStorm = true;
+                std::uniform_int_distribution<int> dur(2, 5);
+                stormDaysLeft = dur(rng);
+                std::cout << "\n!!! ВНИМАНИЕ: СТАНЦИЯ ВОШЛА В КВАНТОВЫЙ ШТОРМ (Дней: " << stormDaysLeft << ") !!!\n";
+            }
+        }
+    }
+
+    if (inStorm) {
+        std::uniform_int_distribution<int> evDist(1, 100);
+        if (evDist(rng) <= 50) {
+            std::uniform_int_distribution<int> typeDist(1, 4);
+            int type = typeDist(rng);
+            if (type == 1) throw PowerSurgeException();
+            else if (type == 2) throw FirmwareGlitchException();
+            else if (type == 3) throw MeteorStrikeException();
+            else if (type == 4) throw CommunicationFailureException();
+        }
+    }
+
+    PrintStatus();
     day++;
 }
 
@@ -200,51 +196,28 @@ void Station::PrintStatus() {
     std::cout << "Шанс сигнала: " << CalculateSignalChance() << "%\n";
 
     std::cout << "\nРоботы:\n";
-    for (auto* r : robots) r->PrintStatus();
+    for (const auto& r : robots) r->PrintStatus();
 
     std::cout << "\nМодули:\n";
-    for (int i = 0; i < modules.size(); i++) {
-        std::cout << i+1 << ": ";
-
-        std::cout << "\nМодули:\n";
-        for (int i = 0; i < modules.size(); i++) {
-            std::cout << i + 1 << ": " << *modules[i] << "\n";
-        }
-
-//        if (dynamic_cast<GeneratorModule*>(modules[i])) std::cout << "Генератор";
-//        else if (dynamic_cast<ArchiveModule*>(modules[i])) std::cout << "Архив";
-//        else if (dynamic_cast<HabitationModule*>(modules[i])) std::cout << "Жилой";
-//        else if (dynamic_cast<ControlCenterModule*>(modules[i])) std::cout << "Центр";
-
-        std::cout << "\n";
+    for (size_t i = 0; i < modules.size(); i++) {
+        std::cout << i + 1 << ": " << *modules[i] << "\n";
     }
 }
 
 bool Station::IsGameOver() {
-    if (robots.empty()) return true;
-    if (energy <= 0 && bits <= 0) return true;
-
-    return false;
+    return robots.empty() || (energy <= 0 && bits <= 0);
 }
 
 void Station::StartGame() {
     std::cout << "Введите название станции:\n";
     getline(std::cin, name);
-
-//    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
     Init();
 
     while (!IsGameOver()) {
         std::cout << "\n===== РЕСУРСЫ =====\n";
         std::cout << "Энергия: " << energy << "/" << maxEnergy << "\n";
         std::cout << "Биты: " << bits << "\n";
-
-        std::cout << "\n1 - следующий день\n";
-        std::cout << "2 - построить генератор (100 энергии)\n";
-        std::cout << "3 - улучшить модуль (50 бит)\n";
-        std::cout << "4 - синтез роботов\n";
-        std::cout << "5 - объединить модули\n";
+        std::cout << "\n1 - следующий день\n2 - построить генератор (100 энергии)\n3 - улучшить модуль (50 бит)\n4 - синтез роботов\n5 - объединить модули\n6 - аналитика \n";
 
         int choice;
         std::cin >> choice;
@@ -252,92 +225,106 @@ void Station::StartGame() {
 
         switch (choice) {
             default: {
-                ProcessDay();
-            }
-            break;
+                try {
+                    ProcessDay();
+                } catch (const PowerSurgeException& e) {
+                    std::cout << "\nАВАРИЯ: " << e.what() << "\n";
+                    energy -= 50; if (energy < 0) energy = 0;
+                } catch (const FirmwareGlitchException& e) {
+                    std::cout << "\nАВАРИЯ: " << e.what() << "\n";
+                    for(auto& r : robots) if(r->IsAlive()) r->DamageFirmware(10);
+                } catch (const MeteorStrikeException& e) {
+                    std::cout << "\nАВАРИЯ: " << e.what() << "\n";
+                    if (!modules.empty()) {
+                        std::uniform_int_distribution<int> mDist(0, modules.size() - 1);
+                        int target = mDist(rng);
+                        modules[target]->SetActive(false);
+                        modules[target]->SetDisabledTimer(1);
+                    }
+                } catch (const CommunicationFailureException& e) {
+                    std::cout << "\nАВАРИЯ: " << e.what() << "\n";
+                    commFailureDaysLeft = 3;
+                } catch (const std::exception& e) {
+                    std::cout << "\nНЕИЗВЕСТНЫЙ СБОЙ: " << e.what() << "\n";
+                }
+            } break;
 
             case 2: {
                 if (energy >= 100) {
-                    modules.push_back(new GeneratorModule());
+                    modules.push_back(std::make_shared<GeneratorModule>());
                     energy -= 100;
                     std::cout << "Генератор построен!\n";
                 } else std::cout << "Недостаточно энергии\n";
-            }
-            break;
+            } break;
 
             case 3: {
-                if (modules.empty()) {
-                    std::cout << "Нет модулей для улучшения\n";
-                    continue;
-                }
-
+                if (modules.empty()) continue;
                 std::cout << "Выбери модуль:\n";
+                for (size_t i = 0; i < modules.size(); i++) std::cout << i << " - " << modules[i]->GetType() << "\n";
 
-                for (int i = 0; i < modules.size(); i++) {
-                    std::cout << i << " - модуль\n";
-                }
-
-                int index;
-                std::cin >> index;
-                std::cin.ignore();
-
-                if (index >= 0 && index < modules.size()) {
-                    if (bits >= 50) {
-                        modules[index]->Upgrade();
-                        bits -= 50;
-                        std::cout << "Модуль улучшен\n";
-                    } else {
-                        std::cout << "Недостаточно бит\n";
-                    }
-                }
-            }
-            break;
+                int index; std::cin >> index; std::cin.ignore();
+                if (index >= 0 && index < modules.size() && bits >= 50) {
+                    modules[index]->Upgrade();
+                    bits -= 50;
+                    std::cout << "Модуль улучшен\n";
+                } else std::cout << "Ошибка или недостаточно бит\n";
+            } break;
 
             case 4: {
-                if (robots.size() < 2) {
-                    std::cout << "Недостаточно роботов\n";
-                    break;
-                }
-
+                if (robots.size() < 2) break;
                 int a, b;
-                std::cout << "Выбери двух роботов:\n";
-                std::cin >> a >> b;
-
-                Robot* child = *robots[a] + *robots[b];
-
-                if (!child) {
-                    std::cout << "Синтез невозможен\n";
-                } else {
-                    robots.push_back(child);
+                std::cout << "Выбери двух роботов:\n"; std::cin >> a >> b;
+                std::unique_ptr<Robot> child = *robots[a] + *robots[b];
+                if (child) {
                     std::cout << "Создан новый робот:\n" << *child << "\n";
-                }
-            }
-            break;
+                    robots.push_back(std::move(child));
+                } else std::cout << "Синтез невозможен\n";
+            } break;
 
             case 5: {
-                int a, b; //todo
-                std::cin >> a >> b;
+                int a, b; std::cin >> a >> b;
+                std::shared_ptr<Module> result = *modules[a] + *modules[b];
+                if (result) {
+                    int max_idx = std::max(a, b);
+                    int min_idx = std::min(a, b);
+                    modules.erase(modules.begin() + max_idx);
+                    modules.erase(modules.begin() + min_idx);
+                    modules.push_back(result);
+                    std::cout << "Модули объединены\n";
+                } else std::cout << "Нельзя объединить\n";
+            } break;
 
-                Module* result = *modules[a] + *modules[b];
+            case 6: {
+                std::cout << "\n--- ТЕРМИНАЛ АНАЛИТИКИ ---\n";
 
-                if (!result) {
-                    std::cout << "Нельзя объединить\n";
-                    break;
+                std::cout << "\n[Перекличка]\n";
+                std::sort(robots.begin(), robots.end(), [](const std::unique_ptr<Robot>& a, const std::unique_ptr<Robot>& b) {
+                    return a->GetName() < b->GetName();
+                });
+                std::for_each(robots.begin(), robots.end(), [](const std::unique_ptr<Robot>& r) { std::cout << *r << "\n"; });
+
+                std::cout << "\n[Инвентаризация]\n";
+                std::sort(modules.begin(), modules.end(), [](const std::shared_ptr<Module>& a, const std::shared_ptr<Module>& b) {
+                    return a->GetType() < b->GetType();
+                });
+                std::for_each(modules.begin(), modules.end(), [](const std::shared_ptr<Module>& m) { std::cout << *m << "\n"; });
+
+                std::cout << "\n[Оценка потерь]\n";
+                int criticalCount = std::count_if(robots.begin(), robots.end(), [](const std::unique_ptr<Robot>& r) {
+                    return r->GetChassis() < 50;
+                });
+                std::cout << "Роботов с критическим шасси (< 50%): " << criticalCount << "\n";
+
+                std::cout << "\n[Статус связи]\n";
+                bool allActive = std::all_of(modules.begin(), modules.end(), [](const std::shared_ptr<Module>& m) {
+                    return m->IsActive();
+                });
+                if (allActive) {
+                    std::cout << "Все модули активны. Системы связи стабильны.\n";
                 }
-
-                delete modules[a];
-                delete modules[b];
-
-                modules.erase(modules.begin() + std::max(a,b));
-                modules.erase(modules.begin() + std::min(a,b));
-
-                modules.push_back(result);
-
-                std::cout << "Модули объединены\n";
-            }
-            break;
+                //else std::cout << "ахтунг!!на станции присутствуют неактивные модули!\n";
+            } break;
         }
-
     }
-    std::cout << "\nСтанция умерла\n";
+    std::cout << "\nСтанция - В С Ё\n";
 }

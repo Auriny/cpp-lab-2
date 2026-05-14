@@ -24,6 +24,11 @@ void Robot::DamageChassis(int dmg) {
     if (chassisIntegrity <= 0) alive = false;
 }
 
+void Robot::DamageFirmware(int dmg) {
+    firmwareIntegrity -= dmg;
+    if (firmwareIntegrity <= 0) alive = false;
+}
+
 void Robot::RepairChassis(int amount) {
     chassisIntegrity = std::min(100, chassisIntegrity + amount);
 }

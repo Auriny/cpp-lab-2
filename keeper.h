@@ -5,14 +5,14 @@ class Keeper : public Robot {
 public:
     Keeper(std::string n) : Robot(n) {}
 
-    std::string GetType() const override { return "ХРАНИТЕЛЬ"; }
+    std::string GetType() const override {
+        return "ХРАНИТЕЛЬ";
+    }
 
-    Robot* CloneWithStats(int ch, int fw, std::string n) const override {
-        Keeper * r = new Keeper(n);
-        r->RepairChassis(100);
-        r->RepairFirmware(100);
-        r->DamageChassis(100 - ch);
-        r->RepairFirmware(fw - 100);
+    std::unique_ptr<Robot> CloneWithStats(int ch, int fw, std::string n) const override {
+        auto r = std::make_unique<Keeper>(n);
+        r->RepairChassis(100); r->RepairFirmware(100);
+        r->DamageChassis(100 - ch); r->DamageFirmware(100 - fw);
         return r;
     }
 
@@ -23,9 +23,7 @@ public:
 
     int GetSlotsUsed() const override { return 2; }
 
-    void PrintStatus() const override;
+    void PrintStatus() const override {
+        std::cout << *this << std::endl;
+    }
 };
-
-void Keeper::PrintStatus() const {
-    std::cout << *this << std::endl;
-}

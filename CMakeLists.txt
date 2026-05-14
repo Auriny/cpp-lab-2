@@ -15,4 +15,5 @@ add_executable(cpp_lab_2 main.cpp
         control_center_module.h
         integrator.h
         keeper.h
-        local_computer.h)
+        local_computer.h
+        exceptions.h)
