@@ -25,7 +25,7 @@ void Station::Init() {
     robots.push_back(std::make_unique<LocalComputer>("LC-01"));
 }
 
-int Station::CalculateSignalChance() {
+int Station::CalculateSignalChance() const {
     if (inStorm || commFailureDaysLeft > 0) return 0;
 
     int totalPower = 0;
@@ -173,14 +173,16 @@ void Station::ProcessDay() {
     }
 
     if (inStorm) {
-        std::uniform_int_distribution<int> evDist(1, 100);
+        std::uniform_int_distribution evDist(1, 100);
         if (evDist(rng) <= 50) {
-            std::uniform_int_distribution<int> typeDist(1, 4);
+            std::uniform_int_distribution typeDist(1, 4);
             int type = typeDist(rng);
-            if (type == 1) throw PowerSurgeException();
-            else if (type == 2) throw FirmwareGlitchException();
-            else if (type == 3) throw MeteorStrikeException();
-            else if (type == 4) throw CommunicationFailureException();
+            switch (type) {
+                case 1: throw PowerSurgeException(); break;
+                case 2: throw FirmwareGlitchException(); break;
+                case 3: throw MeteorStrikeException(); break;
+                case 4: throw CommunicationFailureException(); break;
+            }
         }
     }
 
@@ -270,14 +272,30 @@ void Station::StartGame() {
 
             case 4: {
                 if (robots.size() < 2) break;
+
                 int a, b;
-                std::cout << "Выбери двух роботов:\n"; std::cin >> a >> b;
-                std::unique_ptr<Robot> child = *robots[a] + *robots[b];
+                std::cout << "Выбери двух роботов:\n";
+
+                for (size_t i = 0; i < robots.size(); i++)
+                    std::cout << i << " - " << robots[i]->GetName() << "\n";
+
+                std::cin >> a >> b;
+
+                if (a < 0 || b < 0 ||
+                    a >= robots.size() ||
+                    b >= robots.size()) {
+                    std::cout << "Неверный индекс\n";
+                    break;
+                }
+
+                auto child = *robots[a] + *robots[b];
+
                 if (child) {
                     std::cout << "Создан новый робот:\n" << *child << "\n";
                     robots.push_back(std::move(child));
                 } else std::cout << "Синтез невозможен\n";
-            } break;
+
+            }break;
 
             case 5: {
                 int a, b; std::cin >> a >> b;
@@ -319,8 +337,7 @@ void Station::StartGame() {
                 });
                 if (allActive) {
                     std::cout << "Все модули активны. Системы связи стабильны.\n";
-                }
-                //else std::cout << "ахтунг!!на станции присутствуют неактивные модули!\n";
+                } else std::cout << "ахтунг!!на станции присутствуют неактивные модули!\n";
             } break;
         }
     }

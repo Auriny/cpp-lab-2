@@ -29,18 +29,18 @@ public:
     ~Station() = default;
 
     void Init();
-    int CalculateSignalChance();
-    int CalculateHabitation();
+    int CalculateSignalChance() const;
+    int CalculateHabitation() const;
     void ProductionPhase();
-    void HousingCheck();
+    void HousingCheck() const;
     void SignalAttempt();
     void ModuleConsumption();
     void RepairPhase();
-    void AgingPhase();
+    void AgingPhase() const;
     void RemoveDead();
     void CorporationTax();
     void ProcessDay();
-    void PrintStatus();
+    void PrintStatus() const;
     bool IsGameOver();
     void StartGame();
 };
