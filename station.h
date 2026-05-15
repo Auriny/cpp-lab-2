@@ -8,7 +8,6 @@
 #include "module.h"
 
 class Station {
-private:
     std::string name;
 
     std::vector<std::unique_ptr<Robot>> robots;

@@ -44,10 +44,10 @@ int Station::CalculateSignalChance() {
     if (chance < 5) chance = 5;
     if (chance > 90) chance = 90;
 
-    return (int)chance;
+    return static_cast<int>(chance);
 }
 
-int Station::CalculateHabitation() {
+int Station::CalculateHabitation() const {
     int slots = 0;
     for (const auto& m : modules) slots += m->GetHabitationSlots();
     return slots;
@@ -67,7 +67,7 @@ void Station::ProductionPhase() {
     if (energy > maxEnergy) energy = maxEnergy;
 }
 
-void Station::HousingCheck() {
+void Station::HousingCheck() const {
     int capacity = CalculateHabitation();
     int used = 0;
     for (const auto& r : robots) if (r->IsAlive()) used += r->GetSlotsUsed();
@@ -107,7 +107,7 @@ void Station::RepairPhase() {
     }
 }
 
-void Station::AgingPhase() {
+void Station::AgingPhase() const {
     for (auto& r : robots) r->Age();
 }
 
@@ -135,8 +135,7 @@ void Station::CorporationTax() {
 void Station::ProcessDay() {
     std::cout << "\n===== СТАНЦИЯ: " << name << " =====";
     std::cout << "\n=== ДЕНЬ " << day << " ===\n";
-
-    // Снимаем штрафы модулей
+  
     for (auto& m : modules) {
         if (m->GetDisabledTimer() > 0) {
             m->SetDisabledTimer(m->GetDisabledTimer() - 1);
@@ -155,7 +154,6 @@ void Station::ProcessDay() {
     CorporationTax();
     RemoveDead();
 
-    // Штормовая механика
     if (day > 10) {
         if (stormDaysLeft > 0) {
             stormDaysLeft--;
@@ -190,7 +188,7 @@ void Station::ProcessDay() {
     day++;
 }
 
-void Station::PrintStatus() {
+void Station::PrintStatus() const {
     std::cout << "Энергия: " << energy << "/" << maxEnergy << std::endl;
     std::cout << "Данные: " << bits << std::endl;
     std::cout << "Шанс сигнала: " << CalculateSignalChance() << "%\n";
