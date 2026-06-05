@@ -2,13 +2,14 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include "observer.h"
 
 struct Resources {
     int energy;
     int data;
 };
 
-class Robot {
+class Robot : public IObserver {
 protected:
     std::string name;
     int chassisIntegrity = 100;
@@ -36,6 +37,11 @@ public:
     void DamageFirmware(int dmg);
     void RepairChassis(int amount);
     void RepairFirmware(int amount);
+
+    // Реакция на тревогу (Observer)
+    void OnAlarm(const std::string& threat) override {
+        std::cout << "[" << GetType() << " " << name << "] переходит в режим боевой готовности. Причина: " << threat << "\n";
+    }
 
     virtual std::unique_ptr<Robot> operator+(const Robot& other) const {
         if (GetType() == other.GetType()) {

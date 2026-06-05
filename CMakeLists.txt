@@ -16,4 +16,7 @@ add_executable(cpp_lab_2 main.cpp
         integrator.h
         keeper.h
         local_computer.h
-        exceptions.h)
+        exceptions.h
+        observer.h
+        robot_factory.h
+        main_reactor.h)

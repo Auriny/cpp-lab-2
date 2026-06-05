@@ -6,6 +6,7 @@
 
 #include "robot.h"
 #include "module.h"
+#include "observer.h"
 
 class Station {
     std::string name;
@@ -21,14 +22,24 @@ class Station {
     bool inStorm = false;
     int stormDaysLeft = 0;
     int commFailureDaysLeft = 0;
+    bool isGameRunning = true;
 
     std::default_random_engine rng{std::random_device{}()};
 
-public:
-    Station(); // V деструктор пустой теперь, должно само без него почитситься
+    // издатель
+    AlarmSystem alarm;
+
+    // синглтонность
+    Station();
     ~Station() = default;
+    Station(const Station&) = delete;
+    Station& operator=(const Station&) = delete;
+
+public:
+    static Station& GetInstance();
 
     void Init();
+    void AddRobot(std::unique_ptr<Robot> r);
     int CalculateSignalChance() const;
     int CalculateHabitation() const;
     void ProductionPhase();
@@ -42,5 +53,6 @@ public:
     void ProcessDay();
     void PrintStatus() const;
     bool IsGameOver();
+    void EndGame();
     void StartGame();
 };

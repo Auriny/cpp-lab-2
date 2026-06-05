@@ -10,19 +10,40 @@
 #include "habitation_module.h"
 #include "control_center_module.h"
 #include "archive_module.h"
+#include "robot_factory.h"
+#include "main_reactor.h"
 
+//синглтонность
 Station::Station() : energy(500), maxEnergy(1000), bits(0), day(1) {}
+
+Station& Station::GetInstance() {
+    static Station instance;
+    return instance;
+}
+
+void Station::AddRobot(std::unique_ptr<Robot> r) {
+    alarm.Subscribe(r.get());
+    robots.push_back(std::move(r));
+}
 
 void Station::Init() {
     modules.push_back(std::make_shared<ArchiveModule>());
     modules.push_back(std::make_shared<ControlCenterModule>());
     modules.push_back(std::make_shared<HabitationModule>());
-    modules.push_back(std::make_shared<GeneratorModule>());
 
-    robots.push_back(std::make_unique<Integrator>("A-001"));
-    robots.push_back(std::make_unique<Integrator>("A-002"));
-    robots.push_back(std::make_unique<Keeper>("Чмо"));
-    robots.push_back(std::make_unique<LocalComputer>("LC-01"));
+    // в9
+    modules.push_back(std::make_shared<ReactorProxy>());
+    for(auto& m : modules) alarm.Subscribe(m.get());
+
+    // фабричный метод
+    IntegratorFactory intFac;
+    KeeperFactory keepFac;
+    LocalComputerFactory lcFac;
+
+    AddRobot(intFac.CreateRobot("A-001"));
+    AddRobot(intFac.CreateRobot("A-002"));
+    AddRobot(keepFac.CreateRobot("Чмо"));
+    AddRobot(lcFac.CreateRobot("LC-01"));
 }
 
 int Station::CalculateSignalChance() const {
@@ -112,6 +133,10 @@ void Station::AgingPhase() const {
 }
 
 void Station::RemoveDead() {
+    for (auto& r : robots) {
+        if (!r->IsAlive()) alarm.Unsubscribe(r.get());
+    }
+
     robots.erase(std::remove_if(
             robots.begin(), robots.end(),
             [](const std::unique_ptr<Robot>& r) { return !r->IsAlive(); }
@@ -135,7 +160,7 @@ void Station::CorporationTax() {
 void Station::ProcessDay() {
     std::cout << "\n===== СТАНЦИЯ: " << name << " =====";
     std::cout << "\n=== ДЕНЬ " << day << " ===\n";
-  
+
     for (auto& m : modules) {
         if (m->GetDisabledTimer() > 0) {
             m->SetDisabledTimer(m->GetDisabledTimer() - 1);
@@ -168,6 +193,8 @@ void Station::ProcessDay() {
                 std::uniform_int_distribution<int> dur(2, 5);
                 stormDaysLeft = dur(rng);
                 std::cout << "\n!!! ВНИМАНИЕ: СТАНЦИЯ ВОШЛА В КВАНТОВЫЙ ШТОРМ (Дней: " << stormDaysLeft << ") !!!\n";
+
+                alarm.Notify("Квантовый шторм!");
             }
         }
     }
@@ -205,7 +232,24 @@ void Station::PrintStatus() const {
 }
 
 bool Station::IsGameOver() {
-    return robots.empty() || (energy <= 0 && bits <= 0);
+    return !isGameRunning || robots.empty() || (energy <= 0 && bits <= 0);
+}
+
+// the ending ;3
+void Station::EndGame() {
+    isGameRunning = false;
+    std::cout << ">>> КВАНТОВЫЙ НАВИГАЦИОННЫЙ МАЯК УСПЕШНО АКТИВИРОВАН <<<\n";
+    std::cout << "Ковчег успешно покинул Глубокий Сектор и вышел на орбиту Земли-2.\n";
+    std::cout << "-----------\n";
+    std::cout << "[ФИНАЛЬНАЯ СТАТИСТИКА ЭКСПЕДИЦИИ]\n";
+    std::cout << "Прожито дней: " << day << "\n";
+    std::cout << "Выживших роботов: " << robots.size() << "\n";
+    std::cout << "Построено модулей: " << modules.size() << "\n";
+
+    int score = (robots.size() * 200) + (modules.size() * 100) - (day * 15);
+    if(score < 0) score = 0;
+    std::cout << "Итоговый рейтинг станции ( очки): " << score << "\n";
+    std::cout << "-----------\n";
 }
 
 void Station::StartGame() {
@@ -217,14 +261,14 @@ void Station::StartGame() {
         std::cout << "\n===== РЕСУРСЫ =====\n";
         std::cout << "Энергия: " << energy << "/" << maxEnergy << "\n";
         std::cout << "Биты: " << bits << "\n";
-        std::cout << "\n1 - следующий день\n2 - построить генератор (100 энергии)\n3 - улучшить модуль (50 бит)\n4 - синтез роботов\n5 - объединить модули\n6 - аналитика \n";
+        std::cout << "\n1 - Следующий день\n2 - Построить обычный генератор (100 энергии)\n3 - Улучшить модуль (50 бит)\n4 - Синтез роботов\n5 - Объединить модули\n6 - Аналитика\n7 - Управление Главным Реактором (Proxy)\n8 - Построить Квантовый Маяк [КОНЦОВКА] (500 Эн / 500 Бит)\n";
 
         int choice;
         std::cin >> choice;
         std::cin.ignore();
 
         switch (choice) {
-            default: {
+            case 1: {
                 try {
                     ProcessDay();
                 } catch (const PowerSurgeException& e) {
@@ -251,9 +295,11 @@ void Station::StartGame() {
 
             case 2: {
                 if (energy >= 100) {
-                    modules.push_back(std::make_shared<GeneratorModule>());
+                    auto newGen = std::make_shared<GeneratorModule>();
+                    modules.push_back(newGen);
+                    alarm.Subscribe(newGen.get());
                     energy -= 100;
-                    std::cout << "Генератор построен!\n";
+                    std::cout << "Обычный генератор построен!\n";
                 } else std::cout << "Недостаточно энергии\n";
             } break;
 
@@ -281,9 +327,7 @@ void Station::StartGame() {
 
                 std::cin >> a >> b;
 
-                if (a < 0 || b < 0 ||
-                    a >= robots.size() ||
-                    b >= robots.size()) {
+                if (a < 0 || b < 0 || a >= robots.size() || b >= robots.size()) {
                     std::cout << "Неверный индекс\n";
                     break;
                 }
@@ -292,10 +336,10 @@ void Station::StartGame() {
 
                 if (child) {
                     std::cout << "Создан новый робот:\n" << *child << "\n";
-                    robots.push_back(std::move(child));
+                    AddRobot(std::move(child));
                 } else std::cout << "Синтез невозможен\n";
 
-            }break;
+            } break;
 
             case 5: {
                 int a, b; std::cin >> a >> b;
@@ -303,9 +347,16 @@ void Station::StartGame() {
                 if (result) {
                     int max_idx = std::max(a, b);
                     int min_idx = std::min(a, b);
+
+                    alarm.Unsubscribe(modules[max_idx].get());
+                    alarm.Unsubscribe(modules[min_idx].get());
+
                     modules.erase(modules.begin() + max_idx);
                     modules.erase(modules.begin() + min_idx);
+
                     modules.push_back(result);
+                    alarm.Subscribe(result.get());
+
                     std::cout << "Модули объединены\n";
                 } else std::cout << "Нельзя объединить\n";
             } break;
@@ -339,7 +390,44 @@ void Station::StartGame() {
                     std::cout << "Все модули активны. Системы связи стабильны.\n";
                 } else std::cout << "ахтунг!!на станции присутствуют неактивные модули!\n";
             } break;
+
+            case 7: {
+                std::cout << "Запрос доступа к Главному Реактору. Отправить робота:\n";
+                for (size_t i = 0; i < robots.size(); i++) {
+                    std::cout << i << " - " << robots[i]->GetName() << " (" << robots[i]->GetType() << ")\n";
+                }
+                int r_idx; std::cin >> r_idx; std::cin.ignore();
+
+                if (r_idx >= 0 && r_idx < robots.size()) {
+                    auto it = std::find_if(modules.begin(), modules.end(), [](const std::shared_ptr<Module>& m) {
+                        return m->GetType() == "Прокси-интерфейс Реактора";
+                    });
+
+                    if (it != modules.end()) {
+                        auto proxy = std::dynamic_pointer_cast<ReactorProxy>(*it);
+                        if (proxy) {
+                            try {
+                                proxy->Overdrive(robots[r_idx].get());
+                                energy += 100;
+                            } catch (const std::exception& e) {
+                                std::cout << "\n[КРИТИЧЕСКАЯ ОШИБКА ДОСТУПА] " << e.what() << "\n";
+                            }
+                        }
+                    } else std::cout << "Интерфейс Главного Реактора не обнаружен.\n";
+                }
+            } break;
+
+            case 8: {
+                if (energy >= 500 && bits >= 500) {
+                    energy -= 500;
+                    bits -= 500;
+                    EndGame();
+                } else std::cout << "Недостаточно ресурсов! Требуется 500 Энергии и 500 Бит.\n";
+            } break;
         }
     }
-    std::cout << "\nСтанция - В С Ё\n";
+
+    if (robots.empty() || (energy <= 0 && bits <= 0)) {
+        std::cout << "\nСТАНЦИЯ УНИЧТОЖЕНА. Миссия провалена.\n";
+    }
 }

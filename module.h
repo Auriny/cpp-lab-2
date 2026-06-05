@@ -2,8 +2,9 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include "observer.h"
 
-class Module {
+class Module : public IObserver {
 protected:
     int level = 1;
     bool active = true;
@@ -19,6 +20,11 @@ public:
 
     void SetDisabledTimer(int days) { disabledTimer = days; }
     int GetDisabledTimer() const { return disabledTimer; }
+
+    // Реакция на тревогу (Observer)
+    void OnAlarm(const std::string& threat) override {
+        std::cout << "[" << GetType() << "] активирует щиты и герметизирует отсек. Причина: " << threat << "\n";
+    }
 
     friend std::ostream& operator<<(std::ostream& os, const Module& m) {
         os << m.GetType()
